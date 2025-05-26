@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Car Racing Game</title>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      font-family: sans-serif;
+    }
+    #topBar {
+      text-align: center;
+      margin: 10px;
+    }
+    #topBar .btn {
+      padding: 10px 15px;
+      font-size: 16px;
+      margin: 0 5px;
+      cursor: pointer;
+    }
+    #score {
+      color: white;
+      font-size: 20px;
+      display: inline-block;
+    }
+    #gameArea {
+      width: 390px;
+      height: 600px;
+      margin: 10px auto;
+      background: #333;
+      position: relative;
+      overflow: hidden;
+      border: 3px solid white;
+    }
+    .lane {
+      position: absolute;
+      width: 130px;
+      height: 100%;
+      border-left: 2px dashed #ccc;
+    }
+    .player, .enemy {
+      width: 50px;
+      height: 100px;
+      position: absolute;
+      border-radius: 8px;
+    }
+    .player {
+      background: red;
+      bottom: 10px;
+      left: 160px;
+      z-index: 2;
+    }
+    .enemy {
+      background: blue;
+      top: -120px;
+    }
+    #controls {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      padding: 10px 20px;
+      font-size: 18px;
+      background: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<div id="topBar">
+  <button class="btn" onclick="startGame()">Start</button>
+  <button class="btn" onclick="togglePause()">Pause</button>
+  <span id="score">Score: 0</span>
+</div>
+
+<div id="gameArea">
+  <div class="lane" style="left: 130px;"></div>
+  <div class="lane" style="left: 260px;"></div>
+  <div class="player" id="player"></div>
+</div>
+
+<div id="controls">
+  <button class="btn" onclick="moveLeft()">Left</button>
+  <button class="btn" onclick="moveRight()">Right</button>
+  <button class="btn" onclick="activateBoost()">Boost</button>
+  <button class="btn" onclick="activateBrake()">Brake</button>
+</div>
+
+<script>
+  const player = document.getElementById("player");
+  const gameArea = document.getElementById("gameArea");
+  const scoreDisplay = document.getElementById("score");
+
+  const lanes = [30, 160, 290];
+  let currentLane = 1;
+  let enemies = [];
+  let speed = 5;
+  let score = 0;
+  let boosting = false;
+  let braking = false;
+  let gameRunning = false;
+  let paused = false;
+  let enemyInterval;
+  let animationId;
+  let boostTimeout;
+  let brakeTimeout;
+
+  function createEnemy() {
+    if (!gameRunning || paused) return;
+    const laneIndex = Math.floor(Math.random() * 3);
+    const enemy = document.createElement("div");
+    enemy.classList.add("enemy");
+    enemy.style.left = lanes[laneIndex] + "px";
+    enemy.style.top = "-120px";
+    gameArea.appendChild(enemy);
+    enemies.push(enemy);
+  }
+
+  function moveEnemies() {
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const enemy = enemies[i];
+      let top = parseInt(enemy.style.top);
+      let enemySpeed = speed;
+
+      if (boosting) enemySpeed *= 2;
+      if (braking) enemySpeed *= 0.5;
+
+      top += enemySpeed;
+      enemy.style.top = top + "px";
+
+      if (top > 600) {
+        enemy.remove();
+        enemies.splice(i, 1);
+        score++;
+        scoreDisplay.textContent = "Score: " + score;
+        if (score % 5 === 0) speed++;
+      }
+
+      if (isCollide(player, enemy)) {
+        alert("Game Over! Final Score: " + score);
+        window.location.reload();
+      }
+    }
+  }
+
+  function isCollide(a, b) {
+    const aRect = a.getBoundingClientRect();
+    const bRect = b.getBoundingClientRect();
+    return !(
+      aRect.top > bRect.bottom ||
+      aRect.bottom < bRect.top ||
+      aRect.right < bRect.left ||
+      aRect.left > bRect.right
+    );
+  }
+
+  function moveLeft() {
+    if (currentLane > 0 && gameRunning && !paused) {
+      currentLane--;
+      player.style.left = lanes[currentLane] + "px";
+    }
+  }
+
+  function moveRight() {
+    if (currentLane < 2 && gameRunning && !paused) {
+      currentLane++;
+      player.style.left = lanes[currentLane] + "px";
+    }
+  }
+
+  function activateBoost() {
+    if (gameRunning && !paused) {
+      boosting = true;
+      clearTimeout(boostTimeout);
+      boostTimeout = setTimeout(() => boosting = false, 2000);
+    }
+  }
+
+  function activateBrake() {
+    if (gameRunning && !paused) {
+      braking = true;
+      clearTimeout(brakeTimeout);
+      brakeTimeout = setTimeout(() => braking = false, 2000);
+    }
+  }
+
+  function gameLoop() {
+    if (gameRunning && !paused) {
+      moveEnemies();
+      animationId = requestAnimationFrame(gameLoop);
+    }
+  }
+
+  function startGame() {
+    if (!gameRunning) {
+      gameRunning = true;
+      score = 0;
+      speed = 5;
+      enemies.forEach(e => e.remove());
+      enemies = [];
+      scoreDisplay.textContent = "Score: 0";
+      enemyInterval = setInterval(createEnemy, 1000);
+      gameLoop();
+    }
+  }
+
+  function togglePause() {
+    paused = !paused;
+    if (!paused) {
+      gameLoop(); // Resume loop
+    }
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowLeft") moveLeft();
+    if (e.key === "ArrowRight") moveRight();
+    if (e.key === " ") activateBoost();
+    if (e.key === "Shift") activateBrake();
+    if (e.key === "p") togglePause();
+    if (e.key === "s") startGame();
+  });
+</script>
+
+</body>
+</html>
