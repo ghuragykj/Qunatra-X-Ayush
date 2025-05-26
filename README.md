@@ -1,1 +1,1 @@
-# Qunatra-X-Ayush
+# Qunatra-X-Ayush 
